@@ -59,9 +59,9 @@ function init() {
         omega = 2 * Math.PI * frequency;
     } ).name('frequency, <i>f</i>');
 
-    gui.add( { phaseDifference }, 'phaseDifference', -Math.PI, Math.PI ).onChange( ( value ) => {
-        phaseDifference = value;
-    } ).name('phase difference, Δφ');
+    gui.add( { phaseDifference: phaseDifference / Math.PI }, 'phaseDifference', -1, 1, 0.01 ).onChange( ( value ) => {
+        phaseDifference = value*Math.PI;
+    } ).name('phase difference, Δφ/π');
 
     gui.add( { numberOfVectors }, 'numberOfVectors', 1, 500 ).step(1).onChange( ( value ) => {
         numberOfVectors = value;
@@ -71,10 +71,11 @@ function init() {
     } ).name('Number of vectors');
 
     scene.add(new THREE.GridHelper(20, 20));
+    // scene.add( new THREE.AxesHelper( 5 ) );
+    scene.add(createCoordinateSystem(1));
     
     createArrows();
 }
-
 
 function createArrows() {
 
@@ -177,6 +178,109 @@ function createArrow(
     return group;
 }
 
+function createAxisLabel(text, position, color) {
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+
+    const ctx = canvas.getContext('2d');
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = color;
+    ctx.font = '180px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 128, 128);
+
+    const texture = new THREE.CanvasTexture(canvas);
+
+    const material = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true
+    });
+
+    const sprite = new THREE.Sprite(material);
+
+    sprite.position.copy(position);
+    sprite.scale.set(0.8, 0.8, 0.8);
+
+    return sprite;
+}
+
+function createCoordinateSystem(length = 2) {
+
+    const axes = new THREE.Group();
+
+    // X axis (red)
+
+    axes.add(
+        new THREE.ArrowHelper(
+            new THREE.Vector3(1, 0, 0),
+            new THREE.Vector3(0, 0, 0),
+            length,
+            0xffffff,
+            0.2 * length,
+            0.1 * length
+        )
+    );
+
+    // Y axis (green)
+
+    axes.add(
+        new THREE.ArrowHelper(
+            new THREE.Vector3(0, 1, 0),
+            new THREE.Vector3(0, 0, 0),
+            length,
+            0xffffff,
+            0.2 * length,
+            0.1 * length
+        )
+    );
+
+    // Z axis (blue)
+
+    axes.add(
+        new THREE.ArrowHelper(
+            new THREE.Vector3(0, 0, 1),
+            new THREE.Vector3(0, 0, 0),
+            length,
+            0xffffff,
+            0.2 * length,
+            0.1 * length
+        )
+    );
+
+    // Labels
+
+    axes.add(
+        createAxisLabel(
+            'x',
+            new THREE.Vector3(length + 0.5, 0, 0),
+            '#ffffff'
+        )
+    );
+
+    axes.add(
+        createAxisLabel(
+            'y',
+            new THREE.Vector3(0, length + 0.5, 0),
+            '#ffffff'
+        )
+    );
+
+    axes.add(
+        createAxisLabel(
+            'z',
+            new THREE.Vector3(0, 0, length + 0.5),
+            '#ffffff'
+        )
+    );
+
+    return axes;
+}
+
+
 camera.position.x = -5;
 camera.position.y = 5;
 camera.position.z = -5;
@@ -192,8 +296,8 @@ function animate(timeMS) {
     tLast = t;
 
     arrows.forEach((arrow, index) => {
-
-        const z = getZ(index);
+        // console.log(`Animating arrow ${index}`);
+        const z = arrow.position.z; // getZ(index);
 
         const phase =
             waveNumber * z -
@@ -236,11 +340,8 @@ function animate(timeMS) {
 function getZ(index) {
     return (
         numberOfVectors === 1
-            ? zMin
-            : zMin +
-              (zMax - zMin) *
-              index /
-              (numberOfVectors - 1)
+        ? zMin
+        : zMin + (zMax - zMin) * index / (numberOfVectors - 1)
     );
 }
 
