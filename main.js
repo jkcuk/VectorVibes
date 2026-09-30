@@ -21,15 +21,21 @@ const cameraControls = new OrbitControls( camera, renderer.domElement );
 let amplitudeX = 1.0;
 let amplitudeY = 0;
 
-let wavelength = 5.0;
+let log10wavelength = Math.log10(5.0);
 let frequency = 1;
 
 let phaseDifference = 0;
 
-let waveNumber = 2 * Math.PI / wavelength;
+let waveNumber = 2 * Math.PI / Math.pow(10, log10wavelength);
 let omega = 2 * Math.PI * frequency;
 
-let numberOfVectors = 100;
+let numberOfVectorsX = 1;
+let xMin = -10;
+let xMax = 10; 
+let numberOfVectorsY = 1;
+let yMin = -10;
+let yMax = 10; 
+let numberOfVectorsZ = 100;
 let zMin = -10;
 let zMax = 10;
 
@@ -49,10 +55,14 @@ function init() {
         amplitudeY = value;
     } ).name('y amplitude, E<sub>y</sub>');
 
-    gui.add( { wavelength }, 'wavelength', 1, 10, 0.01 ).onChange( ( value ) => {
-        wavelength = value;
-        waveNumber = 2 * Math.PI / wavelength;
-    } ).name('wavelength, λ');
+    addLogSlider(
+        gui,
+        { log10wavelength: log10wavelength },
+		'log10wavelength',
+		-1,
+		2,
+		(a) => { log10wavelength = a; waveNumber = 2 * Math.PI / Math.pow(10, log10wavelength); }
+	).name('wavelength, λ');
 
     gui.add( { frequency }, 'frequency', 0, 10, 0.01 ).onChange( ( value ) => {
         frequency = value;
@@ -63,12 +73,24 @@ function init() {
         phaseDifference = value*Math.PI;
     } ).name('phase difference, Δφ/π');
 
-    gui.add( { numberOfVectors }, 'numberOfVectors', 1, 500 ).step(1).onChange( ( value ) => {
-        numberOfVectors = value;
+    gui.add( { numberOfVectorsX }, 'numberOfVectorsX', 1, 100 ).step(1).onChange( ( value ) => {
+        numberOfVectorsX = value;
         arrows.forEach( arrow => scene.remove( arrow ) );
         arrows.length = 0;
         createArrows();
-    } ).name('Number of vectors');
+    } ).name('Number of vectors x');
+    gui.add( { numberOfVectorsY }, 'numberOfVectorsY', 1, 100 ).step(1).onChange( ( value ) => {
+        numberOfVectorsY = value;
+        arrows.forEach( arrow => scene.remove( arrow ) );
+        arrows.length = 0;
+        createArrows();
+    } ).name('Number of vectors y');
+    gui.add( { numberOfVectorsZ }, 'numberOfVectorsZ', 1, 500 ).step(1).onChange( ( value ) => {
+        numberOfVectorsZ = value;
+        arrows.forEach( arrow => scene.remove( arrow ) );
+        arrows.length = 0;
+        createArrows();
+    } ).name('Number of vectors z');
 
     scene.add(new THREE.GridHelper(20, 20));
     // scene.add( new THREE.AxesHelper( 5 ) );
@@ -77,24 +99,66 @@ function init() {
     createArrows();
 }
 
+function addLogSlider(gui, params, property, minNumber, maxNumber, onChange) {
+	const controller = gui.add(
+		params,
+		property,
+		minNumber,
+		maxNumber,
+		0.001
+	).onChange(onChange);
+	const numberInput = controller.domElement.querySelector('input[type="number"]');
+	const originalUpdateDisplay = controller.updateDisplay.bind(controller);
+
+	function updateDisplay() {
+		originalUpdateDisplay();
+		if (numberInput) numberInput.value = Math.pow(10, params[property]).toFixed(2);// String(Math.tan(GUIParams[property]));
+	}
+
+	controller.updateDisplay = updateDisplay;
+
+	if (numberInput) {
+		numberInput.removeAttribute('min');
+		numberInput.removeAttribute('max');
+		numberInput.addEventListener('input', (event) => {
+			event.stopImmediatePropagation();
+			const x = Number(numberInput.value);
+			if (Number.isFinite(x)) controller.setValue(Math.log10(x));
+		}, true);
+		numberInput.addEventListener('change', (event) => {
+			event.stopImmediatePropagation();
+			const x = Number(numberInput.value);
+			if (Number.isFinite(x)) controller.setValue(Math.log10(x));
+		}, true);
+	}
+
+	controller.updateDisplay();
+	return controller;
+}
+
 function createArrows() {
 
-    for (let i = 0; i < numberOfVectors; i++) {
-        const z = getZ(i);
+    for (let i = 0; i < numberOfVectorsZ; i++) 
+    for (let j = 0; j < numberOfVectorsX; j++) 
+    for (let k = 0; k < numberOfVectorsY; k++)
+    {
+            const x = getX(j);
+            const y = getY(k);
+            const z = getZ(i);
 
-        const origin = new THREE.Vector3(0, 0, z);
+            const origin = new THREE.Vector3(x, y, z);
 
-        const arrow = new THREE.ArrowHelper(
-            new THREE.Vector3(1, 0, 0),
-            origin,
-            1,
-            0x00aaff,
-            0.3,
-            0.2
-        );
-        
-        scene.add(arrow);
-        arrows.push(arrow);
+            const arrow = new THREE.ArrowHelper(
+                new THREE.Vector3(1, 0, 0),
+                origin,
+                1,
+                0x00aaff,
+                0.3,
+                0.2
+            );
+            
+            scene.add(arrow);
+            arrows.push(arrow);
     }
 }
 
@@ -299,20 +363,10 @@ function animate(timeMS) {
         // console.log(`Animating arrow ${index}`);
         const z = arrow.position.z; // getZ(index);
 
-        const phase =
-            waveNumber * z -
-            omegaT;
+        const phase = waveNumber * z - omegaT;
 
-        const Ex =
-            amplitudeX *
-            Math.cos(phase);
-
-        const Ey =
-            amplitudeY *
-            Math.cos(
-                phase +
-                phaseDifference
-            );
+        const Ex = amplitudeX * Math.cos(phase);
+        const Ey = amplitudeY * Math.cos( phase + phaseDifference );
 
         const field =
             new THREE.Vector3(
@@ -337,11 +391,27 @@ function animate(timeMS) {
     renderer.render(scene, camera);
 }
 
+function getX(index) {
+    return (
+        numberOfVectorsX === 1
+        ? 0
+        : xMin + (xMax - xMin) * index / (numberOfVectorsX - 1)
+    );
+}
+
+function getY(index) {
+    return (
+        numberOfVectorsY === 1
+        ? 0
+        : yMin + (yMax - yMin) * index / (numberOfVectorsY - 1)
+    );
+}
+
 function getZ(index) {
     return (
-        numberOfVectors === 1
-        ? zMin
-        : zMin + (zMax - zMin) * index / (numberOfVectors - 1)
+        numberOfVectorsZ === 1
+        ? 0
+        : zMin + (zMax - zMin) * index / (numberOfVectorsZ - 1)
     );
 }
 
