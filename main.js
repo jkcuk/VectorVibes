@@ -97,23 +97,23 @@ function init() {
         arrows.forEach( arrow => scene.remove( arrow ) );
         arrows.length = 0;
         createArrows();
-    } ).name('Number of vectors x');
+    } ).name('No. of vectors (x)');
     gui.add( { numberOfVectorsY }, 'numberOfVectorsY', 1, 100 ).step(1).onChange( ( value ) => {
         numberOfVectorsY = value;
         arrows.forEach( arrow => scene.remove( arrow ) );
         arrows.length = 0;
         createArrows();
-    } ).name('Number of vectors y');
+    } ).name('No. of vectors (y)');
     gui.add( { numberOfVectorsZ }, 'numberOfVectorsZ', 1, 500 ).step(1).onChange( ( value ) => {
         numberOfVectorsZ = value;
         arrows.forEach( arrow => scene.remove( arrow ) );
         arrows.length = 0;
         createArrows();
-    } ).name('Number of vectors z');
+    } ).name('No. of vectors (z)');
     gui.add( { showCoordinateSystem }, 'showCoordinateSystem' ).onChange( ( value ) => {
         showCoordinateSystem = value;
         coordinateSystem.visible = showCoordinateSystem;
-    } ).name('Show coordinate system');
+    } ).name('Show coordinates');
     gui.add( { showGrid }, 'showGrid' ).onChange( ( value ) => {
         showGrid = value;
         grid.visible = showGrid;
