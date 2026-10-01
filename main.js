@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-
+import { VRButton } from 'three/addons/webxr/VRButton.js';
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
@@ -13,6 +13,8 @@ document.body.appendChild( renderer.domElement );
 // CONTROLS
 const cameraControls = new OrbitControls( camera, renderer.domElement );
 // cameraControls.addEventListener( 'change', animate );
+const vrButton = VRButton.createButton( renderer );
+document.body.appendChild( vrButton );
 
 // =====================================================
 // Parameters
@@ -40,12 +42,24 @@ let numberOfVectorsZ = 100;
 let zMin = -10;
 let zMax = 10;
 
+let coordinateSystem = createCoordinateSystem(1);
+let grid = new THREE.GridHelper(20, 20);
+let showCoordinateSystem = true;
+let showGrid = true;
+
+let showVRButton = true;
+
 const arrows = [];
 
 init();
 renderer.setAnimationLoop( animate );
 
 function init() {
+
+    scene.add(grid);
+    scene.add(coordinateSystem);    
+    createArrows();
+
     const gui = new GUI();
 
     gui.add( { amplitudeX }, 'amplitudeX', -2, 2, 0.01 ).onChange( ( value ) => {
@@ -96,12 +110,18 @@ function init() {
         arrows.length = 0;
         createArrows();
     } ).name('Number of vectors z');
-
-    scene.add(new THREE.GridHelper(20, 20));
-    // scene.add( new THREE.AxesHelper( 5 ) );
-    scene.add(createCoordinateSystem(1));
-    
-    createArrows();
+    gui.add( { showCoordinateSystem }, 'showCoordinateSystem' ).onChange( ( value ) => {
+        showCoordinateSystem = value;
+        coordinateSystem.visible = showCoordinateSystem;
+    } ).name('Show coordinate system');
+    gui.add( { showGrid }, 'showGrid' ).onChange( ( value ) => {
+        showGrid = value;
+        grid.visible = showGrid;
+    } ).name('Show grid');
+    gui.add( { showVRButton }, 'showVRButton' ).onChange( ( value ) => {
+        showVRButton = value;
+        vrButton.style.display = showVRButton ? 'block' : 'none';
+    } ).name('Show VR button');
 }
 
 function addLogSlider(gui, params, property, minNumber, maxNumber, onChange) {
