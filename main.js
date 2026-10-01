@@ -28,6 +28,7 @@ let phaseDifference = 0;
 
 let waveNumber = 2 * Math.PI / Math.pow(10, log10wavelength);
 let omega = 2 * Math.PI * frequency;
+let m = 1;
 
 let numberOfVectorsX = 1;
 let xMin = -10;
@@ -72,6 +73,10 @@ function init() {
     gui.add( { phaseDifference: phaseDifference / Math.PI }, 'phaseDifference', -1, 1, 0.01 ).onChange( ( value ) => {
         phaseDifference = value*Math.PI;
     } ).name('phase difference, Δφ/π');
+
+    gui.add( { m }, 'm', -10, 10, 1 ).onChange( ( value ) => {
+        m = value;
+    } ).name('azimuthal index, <i>m</i>');
 
     gui.add( { numberOfVectorsX }, 'numberOfVectorsX', 1, 100 ).step(1).onChange( ( value ) => {
         numberOfVectorsX = value;
@@ -362,8 +367,9 @@ function animate(timeMS) {
     arrows.forEach((arrow, index) => {
         // console.log(`Animating arrow ${index}`);
         const z = arrow.position.z; // getZ(index);
+        const phi = Math.atan2(arrow.position.y, arrow.position.x);
 
-        const phase = waveNumber * z - omegaT;
+        const phase = waveNumber * z - omegaT + m * phi;
 
         const Ex = amplitudeX * Math.cos(phase);
         const Ey = amplitudeY * Math.cos( phase + phaseDifference );
