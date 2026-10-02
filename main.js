@@ -53,7 +53,7 @@ let numberOfVectorsZ = 100;
 let zMin = -2;
 let zMax = 2;
 
-let origin = new THREE.Vector3(0, 1, 0);
+let origin = new THREE.Vector3(0, 0, 0);
 
 let coordinateSystem = createCoordinateSystem(1);
 coordinateSystem.position.set( origin.x, origin.y, origin.z );
