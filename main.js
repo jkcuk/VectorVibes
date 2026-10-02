@@ -6,19 +6,6 @@ import { HTMLMesh } from 'three/addons/interactive/HTMLMesh.js';
 
 const scene = new THREE.Scene();
 
-// add lights
-const ambient = new THREE.AmbientLight( 0xffffff, 2 );
-scene.add(ambient);
-const directional = new THREE.DirectionalLight( 0xffffff, 2 );
-directional.position.set(2,4,3);
-scene.add(directional);
-
-// GUI in VR
-const guiDom = gui.domElement;
-const guiMesh = new HTMLMesh(guiDom);
-guiMesh.position.set(0, 1.5, -1);
-scene.add(guiMesh);
-
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -90,6 +77,13 @@ renderer.setAnimationLoop( animate );
 
 function init() {
 
+    // add lights
+    const ambient = new THREE.AmbientLight( 0xffffff, 2 );
+    scene.add(ambient);
+    const directional = new THREE.DirectionalLight( 0xffffff, 2 );
+    directional.position.set(2,4,3);
+    scene.add(directional);
+
     scene.add(grid);
     scene.add(coordinateSystem);    
     createArrows();
@@ -158,6 +152,12 @@ function init() {
             vrButton.style.display = showVRButton ? 'block' : 'none';
         } ).name('Show VR button');
     }
+
+    // GUI in VR
+    const guiDom = gui.domElement;
+    const guiMesh = new HTMLMesh(guiDom);
+    guiMesh.position.set(0, 1.5, -1);
+    scene.add(guiMesh);
 }
 
 function addLogSlider(gui, params, property, minNumber, maxNumber, onChange) {
