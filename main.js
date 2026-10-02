@@ -4,25 +4,41 @@ import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
 
 const scene = new THREE.Scene();
+
+// add lights
+const ambient = new THREE.AmbientLight( 0xffffff, 2 );
+scene.add(ambient);
+const directional = new THREE.DirectionalLight( 0xffffff, 2 );
+directional.position.set(2,4,3);
+scene.add(directional);
+
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
 
-const renderer = new THREE.WebGLRenderer();
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.xr.enabled = true;
+renderer.xr.addEventListener('sessionstart', () => {
+    cameraControls.enabled = false;
+});
+renderer.xr.addEventListener('sessionend', () => {
+    cameraControls.enabled = true;
+});
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
+
 
 // CONTROLS
 const cameraControls = new OrbitControls( camera, renderer.domElement );
 // cameraControls.addEventListener( 'change', animate );
 
+const vrButton = VRButton.createButton( renderer );
 let vrSupported = false;
 if ( navigator.xr ) {
     navigator.xr.isSessionSupported( 'immersive-vr' ).then( ( supported ) => {
         vrSupported = supported;
+        if ( vrSupported ) {
+            document.body.appendChild( vrButton );
+        }  
     } );
-}
-const vrButton = VRButton.createButton( renderer );
-if ( vrSupported ) {
-    document.body.appendChild( vrButton );
 }
 
 // =====================================================
