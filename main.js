@@ -54,6 +54,7 @@ let zMin = -2;
 let zMax = 2;
 
 let origin = new THREE.Vector3(0, 1, 0);
+let scalefactor = 1.0;
 
 let coordinateSystem = createCoordinateSystem(1);
 coordinateSystem.position.set( origin.x, origin.y, origin.z );
@@ -139,6 +140,14 @@ function init() {
         arrows.length = 0;
         createArrows();
     } ).name('No. of vectors (z)');
+    gui.add( { scalefactor }, 'scalefactor', 0.1, 10, 0.01 ).onChange( ( value ) => {
+        scalefactor = value;
+        arrows.forEach( arrow => scene.remove( arrow ) );
+        arrows.length = 0;
+        createArrows();
+        coordinateSystem.scale.set(scalefactor, scalefactor, scalefactor);
+        grid.scale.set(scalefactor, scalefactor, scalefactor);
+    } ).name('Scale factor');
     gui.add( { showCoordinateSystem }, 'showCoordinateSystem' ).onChange( ( value ) => {
         showCoordinateSystem = value;
         coordinateSystem.visible = showCoordinateSystem;
@@ -206,19 +215,19 @@ function createArrows() {
     for (let j = 0; j < numberOfVectorsX; j++) 
     for (let k = 0; k < numberOfVectorsY; k++)
     {
-            const x = getX(j);
-            const y = getY(k);
-            const z = getZ(i);
+            const x = scalefactor * getX(j);
+            const y = scalefactor * getY(k);
+            const z = scalefactor * getZ(i);
 
             const startPoint = new THREE.Vector3(x, y, z).add(origin);
 
             const arrow = new THREE.ArrowHelper(
-                new THREE.Vector3(1, 0, 0),
+                new THREE.Vector3(scalefactor, 0, 0),
                 startPoint,
                 1,
                 0x00aaff,
-                0.3,
-                0.2
+                0.15,
+                0.1
             );
             
             scene.add(arrow);
@@ -231,8 +240,8 @@ function createArrow(
     end,
     {
         shaftRadius = 0.05,
-        headRadius = 0.15,
-        headLengthFraction = 0.2,
+        headRadius = 0.1,
+        headLengthFraction = 0.1,
         color = 0x00aaff
     } = {}
 ) {
@@ -331,7 +340,7 @@ function createAxisLabel(text, position, color) {
     const sprite = new THREE.Sprite(material);
 
     sprite.position.copy(position);
-    sprite.scale.set(0.8, 0.8, 0.8);
+    sprite.scale.set(scalefactor * 0.8, scalefactor * 0.8, scalefactor * 0.8);
 
     return sprite;
 }
@@ -344,7 +353,7 @@ function createCoordinateSystem(length = 2) {
 
     axes.add(
         new THREE.ArrowHelper(
-            new THREE.Vector3(1, 0, 0),
+            new THREE.Vector3(scalefactor, 0, 0),
             new THREE.Vector3(0, 0, 0),
             length,
             0xffffff,
@@ -357,7 +366,7 @@ function createCoordinateSystem(length = 2) {
 
     axes.add(
         new THREE.ArrowHelper(
-            new THREE.Vector3(0, 1, 0),
+            new THREE.Vector3(0, scalefactor, 0),
             new THREE.Vector3(0, 0, 0),
             length,
             0xffffff,
@@ -370,7 +379,7 @@ function createCoordinateSystem(length = 2) {
 
     axes.add(
         new THREE.ArrowHelper(
-            new THREE.Vector3(0, 0, 1),
+            new THREE.Vector3(0, 0, scalefactor),
             new THREE.Vector3(0, 0, 0),
             length,
             0xffffff,
@@ -384,7 +393,7 @@ function createCoordinateSystem(length = 2) {
     axes.add(
         createAxisLabel(
             'x',
-            new THREE.Vector3(length + 0.5, 0, 0),
+            new THREE.Vector3(scalefactor * (length + 0.5), 0, 0),
             '#ffffff'
         )
     );
@@ -392,7 +401,7 @@ function createCoordinateSystem(length = 2) {
     axes.add(
         createAxisLabel(
             'y',
-            new THREE.Vector3(0, length + 0.5, 0),
+            new THREE.Vector3(0, scalefactor * (length + 0.5), 0),
             '#ffffff'
         )
     );
@@ -400,7 +409,7 @@ function createCoordinateSystem(length = 2) {
     axes.add(
         createAxisLabel(
             'z',
-            new THREE.Vector3(0, 0, length + 0.5),
+            new THREE.Vector3(0, 0, scalefactor * (length + 0.5)),
             '#ffffff'
         )
     );
@@ -408,7 +417,7 @@ function createCoordinateSystem(length = 2) {
     return axes;
 }
 
-camera.position.set( -3 + origin.x, 3 + origin.y, -3 + origin.z );
+camera.position.set( -3*scalefactor + origin.x, 3*scalefactor + origin.y, -3*scalefactor + origin.z );
 camera.lookAt( origin.x, origin.y, origin.z );
 
 let omegaT = 0;
@@ -425,7 +434,7 @@ function animate(timeMS) {
         const z = arrow.position.z; // getZ(index);
         const phi = Math.atan2(arrow.position.y, arrow.position.x);
 
-        const phase = waveNumber * z - omegaT + m * phi;
+        const phase = waveNumber * z / scalefactor - omegaT + m * phi;
 
         const Ex = amplitudeX * Math.cos(phase);
         const Ey = amplitudeY * Math.cos( phase + phaseDifference );
@@ -438,7 +447,7 @@ function animate(timeMS) {
             );
 
         const magnitude =
-            Math.max(field.length(), 0.001);
+            scalefactor * Math.max(field.length(), 0.001);
 
         field.normalize();
 
