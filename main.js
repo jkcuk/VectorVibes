@@ -25,13 +25,6 @@ renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
 
 
-// CONTROLS
-const cameraControls = new OrbitControls( camera, renderer.domElement );
-// cameraControls.addEventListener( 'change', animate );
-
-const vrButton = VRButton.createButton( renderer );
-let vrSupported = false;
-
 // =====================================================
 // Parameters
 // =====================================================
@@ -39,7 +32,7 @@ let vrSupported = false;
 let amplitudeX = 1.0;
 let amplitudeY = 0;
 
-let log10wavelength = Math.log10(5.0);
+let log10wavelength = Math.log10(1.0);
 let frequency = 1;
 
 let phaseDifference = 0;
@@ -49,17 +42,21 @@ let omega = 2 * Math.PI * frequency;
 let m = 0;
 
 let numberOfVectorsX = 1;
-let xMin = -10;
-let xMax = 10; 
+let xMin = -2;
+let xMax = 2; 
 let numberOfVectorsY = 1;
-let yMin = -10;
-let yMax = 10; 
+let yMin = -2;
+let yMax = 2; 
 let numberOfVectorsZ = 100;
-let zMin = -10;
-let zMax = 10;
+let zMin = -2;
+let zMax = 2;
+
+let origin = new THREE.Vector3(0, 1.7, 0);
 
 let coordinateSystem = createCoordinateSystem(1);
-let grid = new THREE.GridHelper(20, 20);
+coordinateSystem.position.set( origin.x, origin.y, origin.z );
+let grid = new THREE.GridHelper(4, 4);
+grid.position.set( origin .x, origin.y, origin.z );
 let showCoordinateSystem = true;
 let showGrid = true;
 
@@ -71,6 +68,13 @@ init();
 renderer.setAnimationLoop( animate );
 
 function init() {
+    // CONTROLS
+    const cameraControls = new OrbitControls( camera, renderer.domElement );
+    cameraControls.target.set( origin.x, origin.y, origin.z );
+    // cameraControls.addEventListener( 'change', animate );
+
+    const vrButton = VRButton.createButton( renderer );
+    let vrSupported = false;
 
     // add lights
     const ambient = new THREE.AmbientLight( 0xffffff, 2 );
@@ -204,11 +208,11 @@ function createArrows() {
             const y = getY(k);
             const z = getZ(i);
 
-            const origin = new THREE.Vector3(x, y, z);
+            const startPoint = new THREE.Vector3(x, y, z).add(origin);
 
             const arrow = new THREE.ArrowHelper(
                 new THREE.Vector3(1, 0, 0),
-                origin,
+                startPoint,
                 1,
                 0x00aaff,
                 0.3,
@@ -402,11 +406,8 @@ function createCoordinateSystem(length = 2) {
     return axes;
 }
 
-
-camera.position.x = -5;
-camera.position.y = 5;
-camera.position.z = -5;
-camera.lookAt(0, 0, 0);
+camera.position.set( -3 + origin.x, 3 + origin.y, -3 + origin.z );
+camera.lookAt( origin.x, origin.y, origin.z );
 
 let omegaT = 0;
 let tLast = 0;
