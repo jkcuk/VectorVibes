@@ -10,6 +10,8 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
 let gui;
 let guiMesh;
+let cameraControls;
+let vrButton;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.xr.enabled = true;
@@ -69,11 +71,11 @@ renderer.setAnimationLoop( animate );
 
 function init() {
     // CONTROLS
-    const cameraControls = new OrbitControls( camera, renderer.domElement );
+    cameraControls = new OrbitControls( camera, renderer.domElement );
     cameraControls.target.set( origin.x, origin.y, origin.z );
     // cameraControls.addEventListener( 'change', animate );
 
-    const vrButton = VRButton.createButton( renderer );
+    vrButton = VRButton.createButton( renderer );
     let vrSupported = false;
 
     // add lights
