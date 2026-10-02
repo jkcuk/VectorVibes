@@ -431,8 +431,10 @@ function animate(timeMS) {
 
     arrows.forEach((arrow, index) => {
         // console.log(`Animating arrow ${index}`);
-        const z = arrow.position.z; // getZ(index);
-        const phi = Math.atan2(arrow.position.y - origin.y, arrow.position.x - origin.x);
+        const x = arrow.position.x - origin.x; // getX(index);
+        const y = arrow.position.y - origin.y; // getY(index);
+        const z = arrow.position.z - origin.z; // getZ(index);
+        const phi = Math.atan2(y, x);
 
         const phase = waveNumber * z / scalefactor - omegaT + m * phi;
 
