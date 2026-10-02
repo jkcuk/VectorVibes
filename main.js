@@ -53,7 +53,7 @@ let numberOfVectorsZ = 100;
 let zMin = -2;
 let zMax = 2;
 
-let origin = new THREE.Vector3(0, 0, 0);
+let origin = new THREE.Vector3(0, 1, 0);
 
 let coordinateSystem = createCoordinateSystem(1);
 coordinateSystem.position.set( origin.x, origin.y, origin.z );
@@ -91,11 +91,11 @@ function init() {
 
     gui = new GUI();
 
-    gui.add( { amplitudeX }, 'amplitudeX', -2, 2, 0.01 ).onChange( ( value ) => {
+    gui.add( { amplitudeX }, 'amplitudeX', -1, 1, 0.01 ).onChange( ( value ) => {
         amplitudeX = value;
     } ).name('x amplitude, E<sub>x</sub>');
 
-    gui.add( { amplitudeY }, 'amplitudeY', -2, 2, 0.01 ).onChange( ( value ) => {
+    gui.add( { amplitudeY }, 'amplitudeY', -1, 1, 0.01 ).onChange( ( value ) => {
         amplitudeY = value;
     } ).name('y amplitude, E<sub>y</sub>');
 
@@ -104,7 +104,7 @@ function init() {
         { log10wavelength: log10wavelength },
 		'log10wavelength',
 		-1,
-		2,
+		1,
 		(a) => { log10wavelength = a; waveNumber = 2 * Math.PI / Math.pow(10, log10wavelength); }
 	).name('wavelength, λ');
 
