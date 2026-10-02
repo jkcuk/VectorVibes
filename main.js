@@ -30,7 +30,7 @@ let phaseDifference = 0;
 
 let waveNumber = 2 * Math.PI / Math.pow(10, log10wavelength);
 let omega = 2 * Math.PI * frequency;
-let m = 1;
+let m = 0;
 
 let numberOfVectorsX = 1;
 let xMin = -10;
