@@ -3,20 +3,22 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
 import { HTMLMesh } from 'three/addons/interactive/HTMLMesh.js';
+import { InteractiveGroup } from 'three/addons/interactive/InteractiveGroup.js';
+import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
 
 const scene = new THREE.Scene();
-
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+let guiMesh;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.xr.enabled = true;
 renderer.xr.addEventListener('sessionstart', () => {
     cameraControls.enabled = false;
-    guiMesh.style.display = 'block';
+    guiMesh.visible = true;
 });
 renderer.xr.addEventListener('sessionend', () => {
     cameraControls.enabled = true;
-    guiMesh.style.display = 'none';
+    guiMesh.visible = false;
 });
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
@@ -155,9 +157,13 @@ function init() {
 
     // GUI in VR
     const guiDom = gui.domElement;
-    const guiMesh = new HTMLMesh(guiDom);
+    guiMesh = new HTMLMesh(guiDom);
     guiMesh.position.set(0, 1.5, -1);
     scene.add(guiMesh);
+
+    if(vrSupported) {
+        addXRInteractivity();
+    }
 }
 
 function addLogSlider(gui, params, property, minNumber, maxNumber, onChange) {
@@ -476,6 +482,52 @@ function getZ(index) {
         : zMin + (zMax - zMin) * index / (numberOfVectorsZ - 1)
     );
 }
+
+function addXRInteractivity() {
+	// see https://github.com/mrdoob/three.js/blob/master/examples/webxr_vr_sandbox.html
+
+	// the two hand controllers
+
+	const geometry = new THREE.BufferGeometry();
+	geometry.setFromPoints( [ new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, 0, - 5 ) ] );
+
+	const controller1 = renderer.xr.getController( 0 );
+	controller1.add( new THREE.Line( geometry ) );
+	scene.add( controller1 );
+
+	const controller2 = renderer.xr.getController( 1 );
+	controller2.add( new THREE.Line( geometry ) );
+	scene.add( controller2 );
+
+	//
+
+	const controllerModelFactory = new XRControllerModelFactory();
+
+	const controllerGrip1 = renderer.xr.getControllerGrip( 0 );
+	controllerGrip1.add( controllerModelFactory.createControllerModel( controllerGrip1 ) );
+	scene.add( controllerGrip1 );
+
+	const controllerGrip2 = renderer.xr.getControllerGrip( 1 );
+	controllerGrip2.add( controllerModelFactory.createControllerModel( controllerGrip2 ) );
+	scene.add( controllerGrip2 );
+
+	//
+
+	const group = new InteractiveGroup( renderer, camera );
+	group.listenToPointerEvents( renderer, camera );
+	group.listenToXRControllerEvents( controller1 );
+	group.listenToXRControllerEvents( controller2 );
+	scene.add( group );
+
+	const mesh = new HTMLMesh( gui.domElement );
+	mesh.position.x = - 0.75;
+	mesh.position.y = 1.5;
+	mesh.position.z = - 0.5;
+	mesh.rotation.y = Math.PI / 4;
+	mesh.scale.setScalar( 2 );
+	group.add( mesh );	
+}
+
 
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
