@@ -8,17 +8,18 @@ import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFa
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+let gui;
 let guiMesh;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.xr.enabled = true;
 renderer.xr.addEventListener('sessionstart', () => {
     cameraControls.enabled = false;
-    guiMesh.visible = true;
+    if (guiMesh) { guiMesh.visible = true; }
 });
 renderer.xr.addEventListener('sessionend', () => {
     cameraControls.enabled = true;
-    guiMesh.visible = false;
+    if (guiMesh) { guiMesh.visible = false; }
 });
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
@@ -30,14 +31,6 @@ const cameraControls = new OrbitControls( camera, renderer.domElement );
 
 const vrButton = VRButton.createButton( renderer );
 let vrSupported = false;
-if ( navigator.xr ) {
-    navigator.xr.isSessionSupported( 'immersive-vr' ).then( ( supported ) => {
-        vrSupported = supported;
-        if ( vrSupported ) {
-            document.body.appendChild( vrButton );
-        }  
-    } );
-}
 
 // =====================================================
 // Parameters
@@ -90,7 +83,7 @@ function init() {
     scene.add(coordinateSystem);    
     createArrows();
 
-    const gui = new GUI();
+    gui = new GUI();
 
     gui.add( { amplitudeX }, 'amplitudeX', -2, 2, 0.01 ).onChange( ( value ) => {
         amplitudeX = value;
@@ -148,15 +141,19 @@ function init() {
         showGrid = value;
         grid.visible = showGrid;
     } ).name('Show grid');
-    if (vrSupported) {
-        gui.add( { showVRButton }, 'showVRButton' ).onChange( ( value ) => {
-            showVRButton = value;
-            vrButton.style.display = showVRButton ? 'block' : 'none';
-        } ).name('Show VR button');
-    }
 
-    if(vrSupported) {
-        addXRInteractivity();
+    if ( navigator.xr ) {
+        navigator.xr.isSessionSupported( 'immersive-vr' ).then( ( supported ) => {
+            vrSupported = supported;
+            if ( vrSupported ) {
+                document.body.appendChild( vrButton );
+                gui.add( { showVRButton }, 'showVRButton' ).onChange( ( value ) => {
+                    showVRButton = value;
+                    vrButton.style.display = showVRButton ? 'block' : 'none';
+                } ).name('Show VR button');
+                addXRInteractivity();
+            }
+        } );
     }
 }
 
@@ -485,12 +482,19 @@ function addXRInteractivity() {
 	const geometry = new THREE.BufferGeometry();
 	geometry.setFromPoints( [ new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, 0, - 5 ) ] );
 
+    const ray = new THREE.Line(
+        geometry,
+        new THREE.LineBasicMaterial({
+            color: 0xffffff
+        })
+    );
+
 	const controller1 = renderer.xr.getController( 0 );
-	controller1.add( new THREE.Line( geometry ) );
+	controller1.add(ray.clone());
 	scene.add( controller1 );
 
 	const controller2 = renderer.xr.getController( 1 );
-	controller2.add( new THREE.Line( geometry ) );
+    controller2.add(ray.clone());
 	scene.add( controller2 );
 
 	//
@@ -517,6 +521,7 @@ function addXRInteractivity() {
 	guiMesh.position.set( - 0.75, 1.5, - 0.5 );
 	guiMesh.rotation.y = Math.PI / 4;
 	guiMesh.scale.setScalar( 2 );
+    guiMesh.visible = false;
 	group.add( guiMesh );	
 }
 
