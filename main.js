@@ -13,8 +13,17 @@ document.body.appendChild( renderer.domElement );
 // CONTROLS
 const cameraControls = new OrbitControls( camera, renderer.domElement );
 // cameraControls.addEventListener( 'change', animate );
+
+let vrSupported = false;
+if ( navigator.xr ) {
+    navigator.xr.isSessionSupported( 'immersive-vr' ).then( ( supported ) => {
+        vrSupported = supported;
+    } );
+}
 const vrButton = VRButton.createButton( renderer );
-document.body.appendChild( vrButton );
+if ( vrSupported ) {
+    document.body.appendChild( vrButton );
+}
 
 // =====================================================
 // Parameters
@@ -118,10 +127,12 @@ function init() {
         showGrid = value;
         grid.visible = showGrid;
     } ).name('Show grid');
-    gui.add( { showVRButton }, 'showVRButton' ).onChange( ( value ) => {
-        showVRButton = value;
-        vrButton.style.display = showVRButton ? 'block' : 'none';
-    } ).name('Show VR button');
+    if (vrSupported) {
+        gui.add( { showVRButton }, 'showVRButton' ).onChange( ( value ) => {
+            showVRButton = value;
+            vrButton.style.display = showVRButton ? 'block' : 'none';
+        } ).name('Show VR button');
+    }
 }
 
 function addLogSlider(gui, params, property, minNumber, maxNumber, onChange) {
