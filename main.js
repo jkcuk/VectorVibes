@@ -155,12 +155,6 @@ function init() {
         } ).name('Show VR button');
     }
 
-    // GUI in VR
-    const guiDom = gui.domElement;
-    guiMesh = new HTMLMesh(guiDom);
-    guiMesh.position.set(0, 1.5, -1);
-    scene.add(guiMesh);
-
     if(vrSupported) {
         addXRInteractivity();
     }
@@ -519,13 +513,11 @@ function addXRInteractivity() {
 	group.listenToXRControllerEvents( controller2 );
 	scene.add( group );
 
-	const mesh = new HTMLMesh( gui.domElement );
-	mesh.position.x = - 0.75;
-	mesh.position.y = 1.5;
-	mesh.position.z = - 0.5;
-	mesh.rotation.y = Math.PI / 4;
-	mesh.scale.setScalar( 2 );
-	group.add( mesh );	
+	guiMesh = new HTMLMesh( gui.domElement );
+	guiMesh.position.set( - 0.75, 1.5, - 0.5 );
+	guiMesh.rotation.y = Math.PI / 4;
+	guiMesh.scale.setScalar( 2 );
+	group.add( guiMesh );	
 }
 
 
