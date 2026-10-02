@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
+import { HTMLMesh } from 'three/addons/interactive/HTMLMesh.js';
 
 const scene = new THREE.Scene();
 
@@ -12,15 +13,23 @@ const directional = new THREE.DirectionalLight( 0xffffff, 2 );
 directional.position.set(2,4,3);
 scene.add(directional);
 
+// GUI in VR
+const guiDom = gui.domElement;
+const guiMesh = new HTMLMesh(guiDom);
+guiMesh.position.set(0, 1.5, -1);
+scene.add(guiMesh);
+
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.xr.enabled = true;
 renderer.xr.addEventListener('sessionstart', () => {
     cameraControls.enabled = false;
+    guiMesh.style.display = 'block';
 });
 renderer.xr.addEventListener('sessionend', () => {
     cameraControls.enabled = true;
+    guiMesh.style.display = 'none';
 });
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
