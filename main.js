@@ -63,6 +63,7 @@ let numberOfVectorsZ = 100;
 let zMin = -2;
 let zMax = 2;
 let maxFieldMagnitude = 1;
+let colorByFieldStrength = false;
 let samplingGrid = 'Cubic';
 let sphereRadius = 2;
 let cubicVectorCountX = 1;
@@ -251,6 +252,9 @@ function init() {
         2,
         ( value ) => { maxFieldMagnitude = Math.pow(10, value); }
     ).name('Max field magnitude');
+    folderVisualisation.add( { colorByFieldStrength }, 'colorByFieldStrength' )
+        .onChange( ( value ) => { colorByFieldStrength = value; } )
+        .name('Colour by field strength');
     folderVisualisation.add( { showCoordinateSystem }, 'showCoordinateSystem' ).onChange( ( value ) => {
         showCoordinateSystem = value;
         coordinateSystem.visible = showCoordinateSystem;
@@ -559,6 +563,25 @@ function createCoordinateSystem(length = 2) {
 camera.position.set( -3*scalefactor + origin.x, 3*scalefactor + origin.y, -3*scalefactor + origin.z );
 camera.lookAt( origin.x, origin.y, origin.z );
 
+const heatPalette = [
+    new THREE.Color(0x5b0a00),
+    new THREE.Color(0xe23b00),
+    new THREE.Color(0xff9b00),
+    new THREE.Color(0xffee55),
+    new THREE.Color(0xffffff)
+];
+const fieldColor = new THREE.Color();
+
+function getHeatColor(normalizedStrength) {
+    const palettePosition = THREE.MathUtils.clamp(normalizedStrength, 0, 1) * (heatPalette.length - 1);
+    const lowerIndex = Math.floor(palettePosition);
+    const upperIndex = Math.min(lowerIndex + 1, heatPalette.length - 1);
+    return fieldColor.copy(heatPalette[lowerIndex]).lerp(
+        heatPalette[upperIndex],
+        palettePosition - lowerIndex
+    );
+}
+
 let omegaT = 0;
 let tLast = 0;
 
@@ -635,9 +658,16 @@ function animate(timeMS) {
         field.normalize();
 
         arrow.setDirection(field);
-        if (arrow.userData.isClipped !== isClipped) {
+        if (colorByFieldStrength) {
+            arrow.setColor(getHeatColor(fieldMagnitude / maxFieldMagnitude));
+            arrow.userData.colorByFieldStrength = true;
+        } else if (
+            arrow.userData.isClipped !== isClipped
+            || arrow.userData.colorByFieldStrength
+        ) {
             arrow.setColor(isClipped ? 0xffffff : 0x00aaff);
             arrow.userData.isClipped = isClipped;
+            arrow.userData.colorByFieldStrength = false;
         }
         arrow.setLength(
             magnitude,
