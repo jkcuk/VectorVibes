@@ -62,6 +62,12 @@ let yMax = 2;
 let numberOfVectorsZ = 100;
 let zMin = -2;
 let zMax = 2;
+let samplingGrid = 'Cubic';
+let sphereRadius = 2;
+let cubicVectorCountX = 1;
+let cubicVectorCountY = 1;
+let sphericalVectorCountLongitude = 24;
+let sphericalVectorCountLatitude = 13;
 
 let origin = new THREE.Vector3(0, 1, 0);    // so that this works in VR mode, where the user is standing on the floor at y=0
 let scalefactor = 1.0;
@@ -182,30 +188,27 @@ function init() {
     updateSourceParameterVisibility(planeWaveControllers, dipoleControllers);
     const folderVisualisation = gui.addFolder( 'Visualisation' );
 
-    folderVisualisation.add( { numberOfVectorsX }, 'numberOfVectorsX', 1, 100 ).step(1).onChange( ( value ) => {
+    const radiusController = folderVisualisation.add( { sphereRadius }, 'sphereRadius', 0.1, 10, 0.1 )
+        .onChange( ( value ) => {
+            sphereRadius = value;
+            rebuildArrows();
+        } ).name('Sphere radius');
+    const xCountController = folderVisualisation.add( { numberOfVectorsX }, 'numberOfVectorsX', 1, 100 ).step(1).onChange( ( value ) => {
         numberOfVectorsX = value;
-        arrows.forEach( arrow => scene.remove( arrow ) );
-        arrows.length = 0;
-        createArrows();
-    } ).name('No. of vectors (x)');
-    folderVisualisation.add( { numberOfVectorsY }, 'numberOfVectorsY', 1, 100 ).step(1).onChange( ( value ) => {
+        rebuildArrows();
+    } );
+    const yCountController = folderVisualisation.add( { numberOfVectorsY }, 'numberOfVectorsY', 1, 100 ).step(1).onChange( ( value ) => {
         numberOfVectorsY = value;
-        arrows.forEach( arrow => scene.remove( arrow ) );
-        arrows.length = 0;
-        createArrows();
-    } ).name('No. of vectors (y)');
-    folderVisualisation.add( { numberOfVectorsZ }, 'numberOfVectorsZ', 1, 500 ).step(1).onChange( ( value ) => {
+        rebuildArrows();
+    } );
+    const zCountController = folderVisualisation.add( { numberOfVectorsZ }, 'numberOfVectorsZ', 1, 500 ).step(1).onChange( ( value ) => {
         numberOfVectorsZ = value;
-        arrows.forEach( arrow => scene.remove( arrow ) );
-        arrows.length = 0;
-        createArrows();
+        rebuildArrows();
     } ).name('No. of vectors (z)');
     folderVisualisation.add( { scalefactor }, 'scalefactor', 0.1, 10, 0.01 ).onChange( ( value ) => {
         scalefactor = value;
         dipoleMarker.scale.setScalar(scalefactor);
-        arrows.forEach( arrow => scene.remove( arrow ) );
-        arrows.length = 0;
-        createArrows();
+        rebuildArrows();
         coordinateSystem.scale.set(scalefactor, scalefactor, scalefactor);
         grid.scale.set(scalefactor, scalefactor, scalefactor);
     } ).name('Scale factor');
@@ -217,6 +220,39 @@ function init() {
         showGrid = value;
         grid.visible = showGrid;
     } ).name('Show grid');
+
+    const gridController = folderVisualisation.add( { samplingGrid }, 'samplingGrid', ['Cubic', 'Spherical'] )
+        .onChange( ( value ) => {
+            if (samplingGrid === 'Spherical') {
+                sphericalVectorCountLongitude = numberOfVectorsX;
+                sphericalVectorCountLatitude = numberOfVectorsY;
+            } else {
+                cubicVectorCountX = numberOfVectorsX;
+                cubicVectorCountY = numberOfVectorsY;
+            }
+            samplingGrid = value;
+            if (samplingGrid === 'Spherical') {
+                numberOfVectorsX = sphericalVectorCountLongitude;
+                numberOfVectorsY = sphericalVectorCountLatitude;
+                xCountController.setValue(sphericalVectorCountLongitude);
+                yCountController.setValue(sphericalVectorCountLatitude);
+            } else {
+                numberOfVectorsX = cubicVectorCountX;
+                numberOfVectorsY = cubicVectorCountY;
+                xCountController.setValue(cubicVectorCountX);
+                yCountController.setValue(cubicVectorCountY);
+            }
+            updateSamplingControls();
+            rebuildArrows();
+        } ).name('Sampling grid');
+    function updateSamplingControls() {
+        const spherical = samplingGrid === 'Spherical';
+        radiusController[spherical ? 'show' : 'hide']();
+        zCountController[spherical ? 'hide' : 'show']();
+        xCountController.name(spherical ? 'No. of vectors (&phi;)' : 'No. of vectors (x)');
+        yCountController.name(spherical ? 'No. of vectors (&theta;)' : 'No. of vectors (y)');
+    }
+    updateSamplingControls();
 
     if ( navigator.xr ) {
         navigator.xr.isSessionSupported( 'immersive-vr' ).then( ( supported ) => {
@@ -288,6 +324,26 @@ function addLogSlider(gui, params, property, minNumber, maxNumber, onChange) {
 
 function createArrows() {
 
+    if (samplingGrid === 'Spherical') {
+        const latitudeCount = numberOfVectorsY;
+        for (let latitudeIndex = 0; latitudeIndex < latitudeCount; latitudeIndex++) {
+            const theta = latitudeCount === 1
+                ? Math.PI / 2
+                : Math.PI * latitudeIndex / (latitudeCount - 1);
+            const isPole = latitudeIndex === 0 || latitudeIndex === latitudeCount - 1;
+            const longitudeCount = isPole ? 1 : numberOfVectorsX;
+
+            for (let longitudeIndex = 0; longitudeIndex < longitudeCount; longitudeIndex++) {
+                const phi = 2 * Math.PI * longitudeIndex / numberOfVectorsX;
+                const x = sphereRadius * Math.sin(theta) * Math.cos(phi);
+                const y = sphereRadius * Math.sin(theta) * Math.sin(phi);
+                const z = sphereRadius * Math.cos(theta);
+                addArrowAt(x, y, z);
+            }
+        }
+        return;
+    }
+
     for (let i = 0; i < numberOfVectorsZ; i++) 
     for (let j = 0; j < numberOfVectorsX; j++) 
     for (let k = 0; k < numberOfVectorsY; k++)
@@ -296,20 +352,32 @@ function createArrows() {
             const y = scalefactor * getY(k);
             const z = scalefactor * getZ(i);
 
-            const startPoint = new THREE.Vector3(x, y, z).add(origin);
-
-            const arrow = new THREE.ArrowHelper(
-                new THREE.Vector3(scalefactor, 0, 0),
-                startPoint,
-                1,
-                0x00aaff,
-                0.1,
-                0.1
-            );
-            
-            scene.add(arrow);
-            arrows.push(arrow);
+            addArrowAt(x / scalefactor, y / scalefactor, z / scalefactor);
     }
+}
+
+function addArrowAt(x, y, z) {
+    const startPoint = new THREE.Vector3(
+        scalefactor * x,
+        scalefactor * y,
+        scalefactor * z
+    ).add(origin);
+    const arrow = new THREE.ArrowHelper(
+        new THREE.Vector3(scalefactor, 0, 0),
+        startPoint,
+        1,
+        0x00aaff,
+        0.1,
+        0.1
+    );
+    scene.add(arrow);
+    arrows.push(arrow);
+}
+
+function rebuildArrows() {
+    arrows.forEach( arrow => scene.remove( arrow ) );
+    arrows.length = 0;
+    createArrows();
 }
 
 function createAxisLabel(text, position, color) {
