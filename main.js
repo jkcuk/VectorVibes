@@ -104,10 +104,32 @@ function init() {
 
     scene.add(grid);
     scene.add(coordinateSystem);    
-    dipoleMarker = new THREE.Mesh(
-        new THREE.SphereGeometry(0.08, 16, 12),
-        new THREE.MeshBasicMaterial({ color: 0xff0000 })
+    dipoleMarker = new THREE.Group();
+    dipoleMarker.add(
+        new THREE.ArrowHelper(
+            new THREE.Vector3(0, 0, 1),
+            new THREE.Vector3(),
+            0.5,
+            0xff0000,
+            0.16,
+            0.1
+        ),
+        new THREE.ArrowHelper(
+            new THREE.Vector3(0, 0, -1),
+            new THREE.Vector3(),
+            0.5,
+            0xff0000,
+            0.16,
+            0.1
+        )
     );
+    dipoleMarker.traverse((object) => {
+        object.renderOrder = 10;
+        if (object.material) {
+            object.material.depthTest = false;
+            object.material.depthWrite = false;
+        }
+    });
     updateDipoleMarkerPosition();
     dipoleMarker.scale.setScalar(scalefactor);
     dipoleMarker.visible = fieldType === 1 && showSourcePosition;
@@ -120,7 +142,7 @@ function init() {
         gui,
         { log10wavelength: log10wavelength },
 		'log10wavelength',
-		-1,
+		-2,
 		1,
 		(a) => { log10wavelength = a; waveNumber = 2 * Math.PI / Math.pow(10, log10wavelength); }
 	).name('wavelength, λ');
