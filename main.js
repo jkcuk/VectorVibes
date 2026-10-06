@@ -62,12 +62,16 @@ let yMax = 2;
 let numberOfVectorsZ = 100;
 let zMin = -2;
 let zMax = 2;
+let maxFieldMagnitude = 1;
 let samplingGrid = 'Cubic';
 let sphereRadius = 2;
 let cubicVectorCountX = 1;
 let cubicVectorCountY = 1;
 let sphericalVectorCountLongitude = 24;
 let sphericalVectorCountLatitude = 13;
+let polarVectorCountRings = 5;
+let polarVectorCountAngles = 12;
+let polarPlane = 'XY plane';
 
 let origin = new THREE.Vector3(0, 1, 0);    // so that this works in VR mode, where the user is standing on the floor at y=0
 let scalefactor = 1.0;
@@ -215,6 +219,11 @@ function init() {
             sphereRadius = value;
             rebuildArrows();
         } ).name('Sphere radius');
+    const planeController = folderVisualisation.add( { polarPlane }, 'polarPlane', ['XY plane', 'XZ plane', 'YZ plane'] )
+        .onChange( ( value ) => {
+            polarPlane = value;
+            rebuildArrows();
+        } ).name('Polar plane');
     const xCountController = folderVisualisation.add( { numberOfVectorsX }, 'numberOfVectorsX', 1, 100 ).step(1).onChange( ( value ) => {
         numberOfVectorsX = value;
         rebuildArrows();
@@ -234,6 +243,14 @@ function init() {
         coordinateSystem.scale.set(scalefactor, scalefactor, scalefactor);
         grid.scale.set(scalefactor, scalefactor, scalefactor);
     } ).name('Scale factor');
+    addLogSlider(
+        folderVisualisation,
+        { log10MaxFieldMagnitude: Math.log10(maxFieldMagnitude) },
+        'log10MaxFieldMagnitude',
+        -2,
+        2,
+        ( value ) => { maxFieldMagnitude = Math.pow(10, value); }
+    ).name('Max field magnitude');
     folderVisualisation.add( { showCoordinateSystem }, 'showCoordinateSystem' ).onChange( ( value ) => {
         showCoordinateSystem = value;
         coordinateSystem.visible = showCoordinateSystem;
@@ -243,11 +260,14 @@ function init() {
         grid.visible = showGrid;
     } ).name('Show grid');
 
-    const gridController = folderVisualisation.add( { samplingGrid }, 'samplingGrid', ['Cubic', 'Spherical'] )
+    const gridController = folderVisualisation.add( { samplingGrid }, 'samplingGrid', ['Cubic', 'Spherical', 'Polar'] )
         .onChange( ( value ) => {
             if (samplingGrid === 'Spherical') {
                 sphericalVectorCountLongitude = numberOfVectorsX;
                 sphericalVectorCountLatitude = numberOfVectorsY;
+            } else if (samplingGrid === 'Polar') {
+                polarVectorCountRings = numberOfVectorsX;
+                polarVectorCountAngles = numberOfVectorsY;
             } else {
                 cubicVectorCountX = numberOfVectorsX;
                 cubicVectorCountY = numberOfVectorsY;
@@ -258,6 +278,11 @@ function init() {
                 numberOfVectorsY = sphericalVectorCountLatitude;
                 xCountController.setValue(sphericalVectorCountLongitude);
                 yCountController.setValue(sphericalVectorCountLatitude);
+            } else if (samplingGrid === 'Polar') {
+                numberOfVectorsX = polarVectorCountRings;
+                numberOfVectorsY = polarVectorCountAngles;
+                xCountController.setValue(polarVectorCountRings);
+                yCountController.setValue(polarVectorCountAngles);
             } else {
                 numberOfVectorsX = cubicVectorCountX;
                 numberOfVectorsY = cubicVectorCountY;
@@ -269,10 +294,21 @@ function init() {
         } ).name('Sampling grid');
     function updateSamplingControls() {
         const spherical = samplingGrid === 'Spherical';
-        radiusController[spherical ? 'show' : 'hide']();
-        zCountController[spherical ? 'hide' : 'show']();
-        xCountController.name(spherical ? 'No. of vectors (&phi;)' : 'No. of vectors (x)');
-        yCountController.name(spherical ? 'No. of vectors (&theta;)' : 'No. of vectors (y)');
+            const polar = samplingGrid === 'Polar';
+            radiusController[spherical || polar ? 'show' : 'hide']();
+            radiusController.name(polar ? 'Maximum radius' : 'Sphere radius');
+            planeController[polar ? 'show' : 'hide']();
+            zCountController[spherical || polar ? 'hide' : 'show']();
+            xCountController.name(
+                spherical ? 'No. of vectors (&phi;)'
+                    : polar ? 'No. of circles'
+                        : 'No. of vectors (x)'
+            );
+            yCountController.name(
+                spherical ? 'No. of vectors (&theta;)'
+                    : polar ? 'No. of azimuthal angles'
+                        : 'No. of vectors (y)'
+            );
     }
     updateSamplingControls();
 
@@ -345,6 +381,22 @@ function addLogSlider(gui, params, property, minNumber, maxNumber, onChange) {
 }
 
 function createArrows() {
+
+    if (samplingGrid === 'Polar') {
+        for (let ringIndex = 0; ringIndex < numberOfVectorsX; ringIndex++) {
+            const radius = sphereRadius * (ringIndex + 1) / numberOfVectorsX;
+            for (let angleIndex = 0; angleIndex < numberOfVectorsY; angleIndex++) {
+                const angle = 2 * Math.PI * angleIndex / numberOfVectorsY;
+                const first = radius * Math.cos(angle);
+                const second = radius * Math.sin(angle);
+                const x = polarPlane === 'YZ plane' ? 0 : first;
+                const y = polarPlane === 'XY plane' ? second : polarPlane === 'YZ plane' ? first : 0;
+                const z = polarPlane === 'XZ plane' ? second : polarPlane === 'YZ plane' ? second : 0;
+                addArrowAt(x, y, z);
+            }
+        }
+        return;
+    }
 
     if (samplingGrid === 'Spherical') {
         const latitudeCount = numberOfVectorsY;
@@ -573,12 +625,20 @@ function animate(timeMS) {
                 );
         };
 
-        const magnitude =
-            scalefactor * Math.max(field.length(), 0.001);
+        const fieldMagnitude = field.length();
+        const isClipped = fieldMagnitude > maxFieldMagnitude;
+        const magnitude = scalefactor * Math.max(
+            Math.min(fieldMagnitude, maxFieldMagnitude),
+            0.001
+        );
 
         field.normalize();
 
         arrow.setDirection(field);
+        if (arrow.userData.isClipped !== isClipped) {
+            arrow.setColor(isClipped ? 0xffffff : 0x00aaff);
+            arrow.userData.isClipped = isClipped;
+        }
         arrow.setLength(
             magnitude,
             0.1*magnitude,
