@@ -12,6 +12,7 @@ let gui;
 let guiMesh;
 let cameraControls;
 let vrButton;
+let dipoleMarker;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.xr.enabled = true;
@@ -49,6 +50,7 @@ let m = 0;
 
 // Hertzian dipole
 let relativeDipoleMoment = 1.0;
+let showSourcePosition = true;
 
 // visualisation
 let numberOfVectorsX = 1;
@@ -96,6 +98,14 @@ function init() {
 
     scene.add(grid);
     scene.add(coordinateSystem);    
+    dipoleMarker = new THREE.Mesh(
+        new THREE.SphereGeometry(0.08, 16, 12),
+        new THREE.MeshBasicMaterial({ color: 0xff0000 })
+    );
+    updateDipoleMarkerPosition();
+    dipoleMarker.scale.setScalar(scalefactor);
+    dipoleMarker.visible = fieldType === 1 && showSourcePosition;
+    scene.add(dipoleMarker);
     createArrows();
 
     gui = new GUI();
@@ -117,16 +127,19 @@ function init() {
     gui.add( { sourcePositionX: sourcePosition.x }, 'sourcePositionX', -10, 10, 0.01 
     ).onChange( (x) => {
         sourcePosition.x = x;
+        updateDipoleMarkerPosition();
     } ).name('Source <i>x</i>');
 
     gui.add( { sourcePositionY: sourcePosition.y }, 'sourcePositionY', -10, 10, 0.01 
     ).onChange( (y) => {
         sourcePosition.y = y;
+        updateDipoleMarkerPosition();
     } ).name('Source <i>y</i>');
 
     gui.add( { sourcePositionZ: sourcePosition.z }, 'sourcePositionZ', -10, 10, 0.01 
     ).onChange( (z) => {
         sourcePosition.z = z;
+        updateDipoleMarkerPosition();
     } ).name('Source <i>z</i>');
 
 	const planeWaveControllers = [];
@@ -162,6 +175,10 @@ function init() {
 	dipoleControllers.push(gui.add( { relativeDipoleMoment }, 'relativeDipoleMoment', -10, 10, 0.01 ).onChange( ( value ) => {
         relativeDipoleMoment = value;
     } ).name('relative dipole moment'));
+    dipoleControllers.push(gui.add( { showSourcePosition }, 'showSourcePosition' ).onChange( ( value ) => {
+        showSourcePosition = value;
+        dipoleMarker.visible = Number(fieldType) === 1 && showSourcePosition;
+    } ).name('Show source position'));
     updateSourceParameterVisibility(planeWaveControllers, dipoleControllers);
     const folderVisualisation = gui.addFolder( 'Visualisation' );
 
@@ -185,6 +202,7 @@ function init() {
     } ).name('No. of vectors (z)');
     folderVisualisation.add( { scalefactor }, 'scalefactor', 0.1, 10, 0.01 ).onChange( ( value ) => {
         scalefactor = value;
+        dipoleMarker.scale.setScalar(scalefactor);
         arrows.forEach( arrow => scene.remove( arrow ) );
         arrows.length = 0;
         createArrows();
@@ -224,6 +242,11 @@ function updateSourceParameterVisibility(planeWaveControllers, dipoleControllers
         if (Number(fieldType) === 1) controller.show();
         else controller.hide();
     });
+    dipoleMarker.visible = Number(fieldType) === 1 && showSourcePosition;
+}
+
+function updateDipoleMarkerPosition() {
+    dipoleMarker.position.copy(origin).add(sourcePosition);
 }
 
 function addLogSlider(gui, params, property, minNumber, maxNumber, onChange) {
