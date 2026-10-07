@@ -5,6 +5,7 @@ import { VRButton } from 'three/addons/webxr/VRButton.js';
 import { HTMLMesh } from 'three/addons/interactive/HTMLMesh.js';
 import { InteractiveGroup } from 'three/addons/interactive/InteractiveGroup.js';
 import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
+import { FancyArrow } from './FancyArrow';
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
@@ -14,7 +15,10 @@ let cameraControls;
 let vrButton;
 let dipoleMarker;
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    preserveDrawingBuffer: true
+});
 renderer.xr.enabled = true;
 renderer.xr.addEventListener('sessionstart', () => {
     cameraControls.enabled = false;
@@ -26,6 +30,7 @@ renderer.xr.addEventListener('sessionend', () => {
 });
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
+installCanvasContextMenu();
 
 
 // =====================================================
@@ -51,6 +56,7 @@ let m = 0;
 // Hertzian dipole
 let relativeDipoleMoment = 1.0;
 let showSourcePosition = true;
+let fancyArrows = true;
 
 // visualisation
 let numberOfVectorsX = 1;
@@ -110,31 +116,7 @@ function init() {
     scene.add(grid);
     scene.add(coordinateSystem);    
     dipoleMarker = new THREE.Group();
-    dipoleMarker.add(
-        new THREE.ArrowHelper(
-            new THREE.Vector3(0, 0, 1),
-            new THREE.Vector3(),
-            0.5,
-            0xff0000,
-            0.16,
-            0.1
-        ),
-        new THREE.ArrowHelper(
-            new THREE.Vector3(0, 0, -1),
-            new THREE.Vector3(),
-            0.5,
-            0xff0000,
-            0.16,
-            0.1
-        )
-    );
-    dipoleMarker.traverse((object) => {
-        object.renderOrder = 10;
-        if (object.material) {
-            object.material.depthTest = false;
-            object.material.depthWrite = false;
-        }
-    });
+    rebuildDipoleMarkerArrows();
     updateDipoleMarkerPosition();
     dipoleMarker.scale.setScalar(scalefactor);
     dipoleMarker.visible = fieldType === 1 && showSourcePosition;
@@ -214,6 +196,23 @@ function init() {
     } ).name('Show source position'));
     updateSourceParameterVisibility(planeWaveControllers, dipoleControllers);
     const folderVisualisation = gui.addFolder( 'Visualisation' );
+
+    folderVisualisation.add( { fancyArrows }, 'fancyArrows' )
+        .onChange( ( value ) => {
+            fancyArrows = value;
+            rebuildArrows();
+
+            const position = coordinateSystem.position.clone();
+            const scale = coordinateSystem.scale.clone();
+            scene.remove(coordinateSystem);
+            coordinateSystem = createCoordinateSystem(1);
+            coordinateSystem.position.copy(position);
+            coordinateSystem.scale.copy(scale);
+            coordinateSystem.visible = showCoordinateSystem;
+            scene.add(coordinateSystem);
+
+            rebuildDipoleMarkerArrows();
+        } ).name('Fancy arrows');
 
     const radiusController = folderVisualisation.add( { sphereRadius }, 'sphereRadius', 0.1, 10, 0.1 )
         .onChange( ( value ) => {
@@ -331,6 +330,167 @@ function init() {
     }
 }
 
+function rebuildDipoleMarkerArrows() {
+    dipoleMarker.clear();
+    dipoleMarker.add(
+        createArrow(
+            new THREE.Vector3(),
+            new THREE.Vector3(0, 0, 1),
+            0.5,
+            0xff0000
+        ),
+        createArrow(
+            new THREE.Vector3(),
+            new THREE.Vector3(0, 0, -1),
+            0.5,
+            0xff0000
+        )
+    );
+    dipoleMarker.traverse((object) => {
+        object.renderOrder = 10;
+        if (object.material) {
+            object.material.depthTest = false;
+            object.material.depthWrite = false;
+        }
+    });
+}
+
+function installCanvasContextMenu() {
+    const style = document.createElement('style');
+    style.textContent = `
+        #canvas-context-menu {
+            position: fixed;
+            z-index: 10000;
+            display: none;
+            min-width: 180px;
+            padding: 5px;
+            border: 1px solid #555;
+            border-radius: 6px;
+            background: #222;
+            color: #fff;
+            box-shadow: 0 4px 12px #0008;
+            font: 14px sans-serif;
+        }
+        #canvas-context-menu button {
+            display: block;
+            width: 100%;
+            padding: 8px 10px;
+            border: 0;
+            border-radius: 3px;
+            background: transparent;
+            color: inherit;
+            text-align: left;
+            font: inherit;
+            cursor: pointer;
+        }
+        #canvas-context-menu button:hover,
+        #canvas-context-menu button:focus-visible {
+            outline: none;
+            background: #444;
+        }
+        #canvas-context-menu-status {
+            display: none;
+            padding: 6px 10px;
+            color: #ffb4ab;
+            font-size: 12px;
+        }
+    `;
+    document.head.appendChild(style);
+
+    const menu = document.createElement('div');
+    menu.id = 'canvas-context-menu';
+    menu.setAttribute('role', 'menu');
+
+    const saveButton = createMenuButton('Save image as PNG…');
+    const copyButton = createMenuButton('Copy image');
+    const status = document.createElement('div');
+    status.id = 'canvas-context-menu-status';
+    status.setAttribute('role', 'status');
+    menu.append(saveButton, copyButton, status);
+    document.body.appendChild(menu);
+
+    renderer.domElement.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        status.style.display = 'none';
+        menu.style.display = 'block';
+        menu.style.left = `${Math.max(8, Math.min(event.clientX, window.innerWidth - menu.offsetWidth - 8))}px`;
+        menu.style.top = `${Math.max(8, Math.min(event.clientY, window.innerHeight - menu.offsetHeight - 8))}px`;
+        saveButton.focus();
+    });
+
+    document.addEventListener('pointerdown', (event) => {
+        if (!menu.contains(event.target)) menu.style.display = 'none';
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') menu.style.display = 'none';
+    });
+    window.addEventListener('resize', () => {
+        menu.style.display = 'none';
+    });
+
+    saveButton.addEventListener('click', () => {
+        exportCanvasImage().then(() => {
+            menu.style.display = 'none';
+        }).catch((error) => {
+            showMenuError('Could not save the image.');
+            console.error('Could not save the canvas image:', error);
+        });
+    });
+    copyButton.addEventListener('click', () => {
+        copyCanvasImage().then(() => {
+            menu.style.display = 'none';
+        }).catch((error) => {
+            showMenuError('Could not copy the image.');
+            console.error('Could not copy the canvas image:', error);
+        });
+    });
+
+    function showMenuError(message) {
+        status.textContent = message;
+        status.style.display = 'block';
+    }
+}
+
+function createMenuButton(label) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = label;
+    button.setAttribute('role', 'menuitem');
+    return button;
+}
+
+function getCanvasImageBlob() {
+    return new Promise((resolve, reject) => {
+        renderer.domElement.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('Canvas image encoding returned no data.'));
+        }, 'image/png');
+    });
+}
+
+async function exportCanvasImage() {
+    const blob = await getCanvasImageBlob();
+    const imageUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = imageUrl;
+    link.download = 'vector-vibes.png';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(imageUrl), 1000);
+}
+
+async function copyCanvasImage() {
+    if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
+        throw new Error('Image clipboard access is not supported by this browser.');
+    }
+
+    const blob = await getCanvasImageBlob();
+    await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob })
+    ]);
+}
+
 function updateSourceParameterVisibility(planeWaveControllers, dipoleControllers) {
     planeWaveControllers.forEach((controller) => {
         if (Number(fieldType) === 0) controller.show();
@@ -440,16 +600,34 @@ function addArrowAt(x, y, z) {
         scalefactor * y,
         scalefactor * z
     ).add(origin);
-    const arrow = new THREE.ArrowHelper(
-        new THREE.Vector3(scalefactor, 0, 0),
+    const arrow = createArrow(
         startPoint,
-        1,
+        new THREE.Vector3(1, 0, 0),
+        scalefactor,
         0x00aaff,
         0.1,
         0.1
     );
     scene.add(arrow);
     arrows.push(arrow);
+}
+
+function createArrow(startPoint, direction, length, color, headLength, headWidth) {
+    if (fancyArrows) {
+        const directionAndLength = direction.clone().normalize().multiplyScalar(length);
+        const arrow = new FancyArrow(startPoint, directionAndLength);
+        arrow.setColor(color);
+        return arrow;
+    }
+
+    return new THREE.ArrowHelper(
+        direction,
+        startPoint,
+        length,
+        color,
+        headLength,
+        headWidth
+    );
 }
 
 function rebuildArrows() {
@@ -494,42 +672,36 @@ function createCoordinateSystem(length = 2) {
 
     // X axis (red)
 
-    axes.add(
-        new THREE.ArrowHelper(
-            new THREE.Vector3(scalefactor, 0, 0),
-            new THREE.Vector3(0, 0, 0),
-            length,
-            0xffffff,
-            0.2 * length,
-            0.1 * length
-        )
-    );
+    axes.add(createArrow(
+        new THREE.Vector3(),
+        new THREE.Vector3(scalefactor, 0, 0),
+        length,
+        0xffffff,
+        0.2 * length,
+        0.1 * length
+    ));
 
     // Y axis (green)
 
-    axes.add(
-        new THREE.ArrowHelper(
-            new THREE.Vector3(0, scalefactor, 0),
-            new THREE.Vector3(0, 0, 0),
-            length,
-            0xffffff,
-            0.2 * length,
-            0.1 * length
-        )
-    );
+    axes.add(createArrow(
+        new THREE.Vector3(),
+        new THREE.Vector3(0, scalefactor, 0),
+        length,
+        0xffffff,
+        0.2 * length,
+        0.1 * length
+    ));
 
     // Z axis (blue)
 
-    axes.add(
-        new THREE.ArrowHelper(
-            new THREE.Vector3(0, 0, scalefactor),
-            new THREE.Vector3(0, 0, 0),
-            length,
-            0xffffff,
-            0.2 * length,
-            0.1 * length
-        )
-    );
+    axes.add(createArrow(
+        new THREE.Vector3(),
+        new THREE.Vector3(0, 0, scalefactor),
+        length,
+        0xffffff,
+        0.2 * length,
+        0.1 * length
+    ));
 
     // Labels
 
@@ -638,7 +810,7 @@ function animate(timeMS) {
             const Etheta = relativeDipoleMoment / waveNumber / waveNumber * sinTheta * ((1/(r*r*r) - waveNumber*waveNumber/r) * cosPhase + waveNumber/(r*r) * Math.sin(phase));
             const Ephi = 0;
 
-            console.log(`Er: ${Er}, Etheta: ${Etheta}, Ephi: ${Ephi}`);
+            // console.log(`Er: ${Er}, Etheta: ${Etheta}, Ephi: ${Ephi}`);
 
             field =
                 new THREE.Vector3(
