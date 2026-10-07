@@ -72,6 +72,7 @@ let maxFieldMagnitude = 1;
 let colorByFieldStrength = false;
 let samplingGrid = 'Cubic';
 let sphereRadius = 2;
+let sphericalSurfaceCount = 1;
 let cubicVectorCountX = 1;
 let cubicVectorCountY = 1;
 let sphericalVectorCountLongitude = 24;
@@ -219,6 +220,16 @@ function init() {
             sphereRadius = value;
             rebuildArrows();
         } ).name('Sphere radius');
+    const sphericalSurfaceController = folderVisualisation.add(
+        { sphericalSurfaceCount },
+        'sphericalSurfaceCount',
+        1,
+        20
+    ).step(1).onChange( ( value ) => {
+        sphericalSurfaceCount = value;
+        updateSamplingControls();
+        rebuildArrows();
+    } ).name('No. of spherical surfaces');
     const planeController = folderVisualisation.add( { polarPlane }, 'polarPlane', ['XY plane', 'XZ plane', 'YZ plane'] )
         .onChange( ( value ) => {
             polarPlane = value;
@@ -299,7 +310,12 @@ function init() {
         const spherical = samplingGrid === 'Spherical';
             const polar = samplingGrid === 'Polar';
             radiusController[spherical || polar ? 'show' : 'hide']();
-            radiusController.name(polar ? 'Maximum radius' : 'Sphere radius');
+            radiusController.name(
+                polar ? 'Maximum radius'
+                    : spherical && sphericalSurfaceCount > 1 ? 'Maximum surface radius'
+                        : 'Sphere radius'
+            );
+            sphericalSurfaceController[spherical ? 'show' : 'hide']();
             planeController[polar ? 'show' : 'hide']();
             zCountController[spherical || polar ? 'hide' : 'show']();
             xCountController.name(
@@ -564,19 +580,22 @@ function createArrows() {
 
     if (samplingGrid === 'Spherical') {
         const latitudeCount = numberOfVectorsY;
-        for (let latitudeIndex = 0; latitudeIndex < latitudeCount; latitudeIndex++) {
-            const theta = latitudeCount === 1
-                ? Math.PI / 2
-                : Math.PI * latitudeIndex / (latitudeCount - 1);
-            const isPole = latitudeIndex === 0 || latitudeIndex === latitudeCount - 1;
-            const longitudeCount = isPole ? 1 : numberOfVectorsX;
+        for (let surfaceIndex = 0; surfaceIndex < sphericalSurfaceCount; surfaceIndex++) {
+            const radius = sphereRadius * (surfaceIndex + 1) / sphericalSurfaceCount;
+            for (let latitudeIndex = 0; latitudeIndex < latitudeCount; latitudeIndex++) {
+                const theta = latitudeCount === 1
+                    ? Math.PI / 2
+                    : Math.PI * latitudeIndex / (latitudeCount - 1);
+                const isPole = latitudeIndex === 0 || latitudeIndex === latitudeCount - 1;
+                const longitudeCount = isPole ? 1 : numberOfVectorsX;
 
-            for (let longitudeIndex = 0; longitudeIndex < longitudeCount; longitudeIndex++) {
-                const phi = 2 * Math.PI * longitudeIndex / numberOfVectorsX;
-                const x = sphereRadius * Math.sin(theta) * Math.cos(phi);
-                const y = sphereRadius * Math.sin(theta) * Math.sin(phi);
-                const z = sphereRadius * Math.cos(theta);
-                addArrowAt(x, y, z);
+                for (let longitudeIndex = 0; longitudeIndex < longitudeCount; longitudeIndex++) {
+                    const phi = 2 * Math.PI * longitudeIndex / numberOfVectorsX;
+                    const x = radius * Math.sin(theta) * Math.cos(phi);
+                    const y = radius * Math.sin(theta) * Math.sin(phi);
+                    const z = radius * Math.cos(theta);
+                    addArrowAt(x, y, z);
+                }
             }
         }
         return;
