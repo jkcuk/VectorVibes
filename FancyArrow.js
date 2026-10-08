@@ -20,8 +20,8 @@ export class FancyArrow extends THREE.Group {
         const coneLength = 0.25;
         const cylinderLength = totalLength - coneLength;
 
-        const cylinderRadius = 0.03;
-        const coneRadius = 0.06;
+        const cylinderRadius = 0.02;
+        const coneRadius = 0.05;
 
         // 1. Create Cylinder (Shaft)
         // Default Three.js cylinders are centered at (0,0,0) extending along the Y-axis
