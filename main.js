@@ -6,6 +6,7 @@ import { HTMLMesh } from 'three/addons/interactive/HTMLMesh.js';
 import { InteractiveGroup } from 'three/addons/interactive/InteractiveGroup.js';
 import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
 import { FancyArrow } from './FancyArrow';
+import { installCanvasContextMenu } from './canvasContextMenu.js';
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
@@ -30,7 +31,7 @@ renderer.xr.addEventListener('sessionend', () => {
 });
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
-installCanvasContextMenu();
+installCanvasContextMenu(renderer.domElement, { filename: 'vector-vibes.png' });
 
 
 // =====================================================
@@ -369,142 +370,6 @@ function rebuildDipoleMarkerArrows() {
             object.material.depthWrite = false;
         }
     });
-}
-
-function installCanvasContextMenu() {
-    const style = document.createElement('style');
-    style.textContent = `
-        #canvas-context-menu {
-            position: fixed;
-            z-index: 10000;
-            display: none;
-            min-width: 180px;
-            padding: 5px;
-            border: 1px solid #555;
-            border-radius: 6px;
-            background: #222;
-            color: #fff;
-            box-shadow: 0 4px 12px #0008;
-            font: 14px sans-serif;
-        }
-        #canvas-context-menu button {
-            display: block;
-            width: 100%;
-            padding: 8px 10px;
-            border: 0;
-            border-radius: 3px;
-            background: transparent;
-            color: inherit;
-            text-align: left;
-            font: inherit;
-            cursor: pointer;
-        }
-        #canvas-context-menu button:hover,
-        #canvas-context-menu button:focus-visible {
-            outline: none;
-            background: #444;
-        }
-        #canvas-context-menu-status {
-            display: none;
-            padding: 6px 10px;
-            color: #ffb4ab;
-            font-size: 12px;
-        }
-    `;
-    document.head.appendChild(style);
-
-    const menu = document.createElement('div');
-    menu.id = 'canvas-context-menu';
-    menu.setAttribute('role', 'menu');
-
-    const saveButton = createMenuButton('Save image as PNG…');
-    const copyButton = createMenuButton('Copy image');
-    const status = document.createElement('div');
-    status.id = 'canvas-context-menu-status';
-    status.setAttribute('role', 'status');
-    menu.append(saveButton, copyButton, status);
-    document.body.appendChild(menu);
-
-    renderer.domElement.addEventListener('contextmenu', (event) => {
-        event.preventDefault();
-        status.style.display = 'none';
-        menu.style.display = 'block';
-        menu.style.left = `${Math.max(8, Math.min(event.clientX, window.innerWidth - menu.offsetWidth - 8))}px`;
-        menu.style.top = `${Math.max(8, Math.min(event.clientY, window.innerHeight - menu.offsetHeight - 8))}px`;
-        saveButton.focus();
-    });
-
-    document.addEventListener('pointerdown', (event) => {
-        if (!menu.contains(event.target)) menu.style.display = 'none';
-    });
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') menu.style.display = 'none';
-    });
-    window.addEventListener('resize', () => {
-        menu.style.display = 'none';
-    });
-
-    saveButton.addEventListener('click', () => {
-        exportCanvasImage().then(() => {
-            menu.style.display = 'none';
-        }).catch((error) => {
-            showMenuError('Could not save the image.');
-            console.error('Could not save the canvas image:', error);
-        });
-    });
-    copyButton.addEventListener('click', () => {
-        copyCanvasImage().then(() => {
-            menu.style.display = 'none';
-        }).catch((error) => {
-            showMenuError('Could not copy the image.');
-            console.error('Could not copy the canvas image:', error);
-        });
-    });
-
-    function showMenuError(message) {
-        status.textContent = message;
-        status.style.display = 'block';
-    }
-}
-
-function createMenuButton(label) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = label;
-    button.setAttribute('role', 'menuitem');
-    return button;
-}
-
-function getCanvasImageBlob() {
-    return new Promise((resolve, reject) => {
-        renderer.domElement.toBlob((blob) => {
-            if (blob) resolve(blob);
-            else reject(new Error('Canvas image encoding returned no data.'));
-        }, 'image/png');
-    });
-}
-
-async function exportCanvasImage() {
-    const blob = await getCanvasImageBlob();
-    const imageUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = imageUrl;
-    link.download = 'vector-vibes.png';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(imageUrl), 1000);
-}
-
-async function copyCanvasImage() {
-    if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
-        throw new Error('Image clipboard access is not supported by this browser.');
-    }
-
-    const blob = await getCanvasImageBlob();
-    await navigator.clipboard.write([
-        new ClipboardItem({ 'image/png': blob })
-    ]);
 }
 
 function updateSourceParameterVisibility(planeWaveControllers, dipoleControllers) {
