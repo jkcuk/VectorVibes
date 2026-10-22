@@ -31,7 +31,7 @@ renderer.xr.addEventListener('sessionend', () => {
 });
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
-installCanvasContextMenu(renderer.domElement, { filename: 'VectorVibes.png' });
+installCanvasContextMenu(renderer.domElement, { filename: 'vector-vibes.png' });
 
 
 // =====================================================
