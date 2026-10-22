@@ -5,7 +5,7 @@ import { VRButton } from 'three/addons/webxr/VRButton.js';
 import { HTMLMesh } from 'three/addons/interactive/HTMLMesh.js';
 import { InteractiveGroup } from 'three/addons/interactive/InteractiveGroup.js';
 import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
-import { FancyArrow } from './FancyArrow';
+import { FancyArrow } from './FancyArrow.js';
 import { installCanvasContextMenu } from './canvasContextMenu.js';
 
 const scene = new THREE.Scene();
