@@ -1,3 +1,9 @@
+/**
+ * use like this:
+ * import { installCanvasContextMenu } from './canvasContextMenu.js';
+ * installCanvasContextMenu(renderer.domElement, { filename: 'cool_name.png' });
+ */
+
 const MENU_CLASS = 'canvas-image-context-menu';
 const STATUS_CLASS = 'canvas-image-context-menu-status';
 
